@@ -1,0 +1,117 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+
+<title>
+NeuroTrace AI Dashboard
+</title>
+
+<style>
+
+body{
+background:#0f172a;
+color:white;
+font-family:Arial;
+padding:30px;
+}
+
+.card{
+background:#1e293b;
+padding:20px;
+margin:15px;
+border-radius:15px;
+}
+
+button{
+padding:10px;
+background:#2563eb;
+color:white;
+border:none;
+}
+
+</style>
+
+</head>
+
+
+<body>
+
+
+<h1>
+🧠 NeuroTrace AI System
+</h1>
+
+
+<div class="card">
+
+<input id="input"
+placeholder="Ask AI"
+>
+
+<button onclick="askAI()">
+Send
+</button>
+
+<p id="response"></p>
+
+</div>
+
+
+
+<div class="card">
+
+<h2>
+Metrics
+</h2>
+
+<p id="metrics">
+Loading...
+</p>
+
+</div>
+
+
+
+<script>
+
+
+async function askAI(){
+
+let input=document.getElementById(
+"input"
+).value;
+
+
+let res=await fetch(
+"http://localhost:8000/chat",
+{
+method:"POST",
+headers:{
+"Content-Type":"application/json"
+},
+body:JSON.stringify({
+input:input
+})
+}
+);
+
+
+let data=await res.json();
+
+
+document.getElementById(
+"response"
+).innerHTML=
+JSON.stringify(data);
+
+}
+
+
+
+</script>
+
+
+</body>
+
+</html>
