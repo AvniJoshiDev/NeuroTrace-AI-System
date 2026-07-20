@@ -1,0 +1,13 @@
+version: "3"
+
+services:
+
+  signoz:
+    image: signoz/signoz
+    ports:
+      - "3301:3301"
+
+  otel-collector:
+    image: otel/opentelemetry-collector
+    ports:
+      - "4318:4318"
