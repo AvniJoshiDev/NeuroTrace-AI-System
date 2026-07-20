@@ -1,0 +1,19 @@
+name: neurotrace-ai-system
+
+services:
+  signoz:
+    type: signoz
+
+  backend:
+    type: docker
+    path: .
+    dockerfile: Dockerfile
+    ports:
+      - 5000:5000
+    env:
+      - OTEL_EXPORTER_OTLP_ENDPOINT=http://signoz:4317
+      - OTEL_SERVICE_NAME=neurotrace-ai
+
+  frontend:
+    type: static
+    path: ./frontend
