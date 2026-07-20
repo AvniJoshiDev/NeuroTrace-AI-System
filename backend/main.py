@@ -3,37 +3,49 @@ from fastapi.middleware.cors import CORSMiddleware
 import time
 import uuid
 
+from core.ai_engine import generate_ai_response
+from core.error_analyzer import analyze_error
+from core.failure_detector import check_failure_pattern
+
+from models.schemas import ChatRequest
+
+from observability.logging_config import logger
+from observability.metrics import (
+    total_requests,
+    total_errors,
+    request_latency
+)
+
+from middleware.request_tracker import RequestTracker
+
 
 app = FastAPI(
     title="NeuroTrace AI System",
-    description="AI Observability System with FastAPI",
+    description="AI Observability System with FastAPI + OpenTelemetry",
     version="1.0.0"
 )
 
 
-# Allow frontend connection
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],
-    allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
 )
 
 
-# Temporary memory storage
-logs = []
+# Request tracking middleware
+app.add_middleware(
+    RequestTracker
+)
 
-metrics = {
-    "total_requests": 0,
-    "success_count": 0,
-    "error_count": 0,
-    "total_latency": 0
-}
+
+logs = []
 
 
 @app.get("/")
 async def home():
+
     return {
         "message": "NeuroTrace AI System Running 🚀",
         "status": "healthy"
@@ -42,27 +54,19 @@ async def home():
 
 
 @app.post("/chat")
-async def chat(data: dict):
+async def chat(request: ChatRequest):
 
     start_time = time.time()
 
     request_id = str(uuid.uuid4())
 
-    user_input = data.get("input", "")
-
-
-    metrics["total_requests"] += 1
+    total_requests.add(1)
 
 
     try:
 
-        if not user_input:
-            raise Exception("Invalid empty input")
-
-
-        # Simulated AI response
-        response = (
-            f"AI Analysis completed for: {user_input}"
+        response = await generate_ai_response(
+            request.input
         )
 
 
@@ -72,27 +76,49 @@ async def chat(data: dict):
         )
 
 
-        metrics["success_count"] += 1
-        metrics["total_latency"] += latency
+        request_latency.record(
+            latency
+        )
 
 
-        log = {
+        logs.append(
+            {
+                "request_id": request_id,
+                "input": request.input,
+                "response": response,
+                "latency": latency,
+                "status": "success"
+            }
+        )
+
+
+        logger.info(
+            {
+                "trace": request_id,
+                "status": "success",
+                "latency": latency
+            }
+        )
+
+
+        return {
             "request_id": request_id,
-            "input": user_input,
             "response": response,
             "latency": latency,
             "status": "success"
         }
 
 
-        logs.append(log)
-
-
-        return log
-
-
 
     except Exception as error:
+
+
+        total_errors.add(1)
+
+
+        error_data = analyze_error(
+            str(error)
+        )
 
 
         latency = round(
@@ -101,47 +127,30 @@ async def chat(data: dict):
         )
 
 
-        metrics["error_count"] += 1
+        logs.append(
+            {
+                "request_id": request_id,
+                "error": error_data,
+                "latency": latency,
+                "status": "error"
+            }
+        )
 
 
-        log = {
+        logger.error(
+            {
+                "trace": request_id,
+                "error": error_data
+            }
+        )
+
+
+        return {
             "request_id": request_id,
-            "input": user_input,
-            "error": str(error),
+            "error": error_data,
             "latency": latency,
             "status": "error"
         }
-
-
-        logs.append(log)
-
-
-        return log
-
-
-
-
-@app.get("/metrics-summary")
-async def metrics_summary():
-
-    total = metrics["total_requests"]
-
-    if total > 0:
-        success_rate = (
-            metrics["success_count"]
-            /
-            total
-        ) * 100
-    else:
-        success_rate = 0
-
-
-    return {
-        "total_requests": total,
-        "success_count": metrics["success_count"],
-        "error_count": metrics["error_count"],
-        "success_rate": round(success_rate, 2)
-    }
 
 
 
@@ -154,32 +163,71 @@ async def get_logs():
 
 
 
+@app.get("/metrics-summary")
+async def metrics_summary():
+
+    total = len(logs)
+
+    success = len(
+        [
+            x for x in logs
+            if x.get("status")=="success"
+        ]
+    )
+
+    errors = total - success
+
+
+    return {
+
+        "total_requests": total,
+        "success": success,
+        "errors": errors,
+        "success_rate":
+            round(
+                (success / total * 100)
+                if total else 0,
+                2
+            )
+    }
+
+
+
+
+@app.get("/analysis-report")
+async def analysis_report():
+
+    return check_failure_pattern()
+
+
+
+
 @app.post("/run-demo")
 async def run_demo():
 
-    demo_queries = [
+    examples = [
         "Explain AI",
         "What is observability?",
         "",
-        "How does tracing work?"
+        "unclear xyz"
     ]
 
 
-    results = []
+    results=[]
 
 
-    for query in demo_queries:
+    for item in examples:
 
         result = await chat(
-            {
-                "input": query
-            }
+            ChatRequest(
+                input=item
+            )
         )
 
         results.append(result)
 
 
     return {
-        "demo": "completed",
-        "results": results
+        "demo":"completed",
+        "results":results
     }
