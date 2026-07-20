@@ -7,7 +7,6 @@
 NeuroView AI Dashboard
 </title>
 
-
 <script src="https://cdn.tailwindcss.com"></script>
 
 
@@ -46,19 +45,16 @@ border:
 
 .card{
 
-transition:
-0.3s;
+transition:0.3s;
 
 }
 
 
 .card:hover{
 
-transform:
-translateY(-5px);
+transform:translateY(-5px);
 
 }
-
 
 </style>
 
@@ -67,7 +63,6 @@ translateY(-5px);
 
 
 <body class="p-8">
-
 
 
 <h1 class="text-4xl font-bold mb-2">
@@ -86,9 +81,7 @@ AI Observability powered by FastAPI + OpenTelemetry + SigNoz
 
 
 
-
-<!-- Chat Section -->
-
+<!-- CHAT -->
 
 <div class="glass rounded-xl p-6 mb-8">
 
@@ -98,7 +91,6 @@ AI Observability powered by FastAPI + OpenTelemetry + SigNoz
 🤖 AI Agent Chat
 
 </h2>
-
 
 
 <div class="flex gap-3">
@@ -113,7 +105,6 @@ class="flex-1 p-3 rounded bg-black/40"
 placeholder="Ask AI anything..."
 
 >
-
 
 
 <button
@@ -133,6 +124,20 @@ Send
 
 
 
+<button
+
+onclick="runDemo()"
+
+class="bg-purple-600 px-6 py-2 rounded mt-4"
+
+>
+
+🚀 Run Demo
+
+</button>
+
+
+
 <div
 
 id="response"
@@ -148,7 +153,7 @@ class="mt-5 text-green-400">
 
 
 
-<!-- Metrics -->
+<!-- METRICS -->
 
 
 <div class="grid md:grid-cols-4 gap-5 mb-8">
@@ -158,9 +163,7 @@ class="mt-5 text-green-400">
 
 <h3>Total Requests</h3>
 
-<p id="total"
-
-class="text-3xl font-bold">
+<p id="total" class="text-3xl font-bold">
 
 0
 
@@ -174,9 +177,7 @@ class="text-3xl font-bold">
 
 <h3>Success Rate</h3>
 
-<p id="success"
-
-class="text-3xl font-bold text-green-400">
+<p id="success" class="text-3xl font-bold text-green-400">
 
 0%
 
@@ -186,21 +187,17 @@ class="text-3xl font-bold text-green-400">
 
 
 
-
 <div class="glass card p-5 rounded-xl">
 
 <h3>Errors</h3>
 
-<p id="errors"
-
-class="text-3xl font-bold text-red-400">
+<p id="errors" class="text-3xl font-bold text-red-400">
 
 0
 
 </p>
 
 </div>
-
 
 
 
@@ -217,14 +214,14 @@ Healthy
 </div>
 
 
-
 </div>
 
 
 
 
 
-<!-- Logs -->
+
+<!-- LOGS -->
 
 
 <div class="glass p-6 rounded-xl mb-8">
@@ -237,9 +234,7 @@ Healthy
 </h2>
 
 
-<div
-
-id="logs"
+<div id="logs"
 
 class="space-y-3">
 
@@ -252,7 +247,8 @@ class="space-y-3">
 
 
 
-<!-- Trace Flow -->
+
+<!-- TRACE -->
 
 
 <div class="glass p-6 rounded-xl">
@@ -294,10 +290,80 @@ SigNoz
 
 
 
+
+
+
+<!-- HEALTH SCORE -->
+
+
+<div class="glass p-6 rounded-xl mt-8">
+
+
+<h2 class="text-2xl mb-4">
+
+💚 AI Health Score
+
+</h2>
+
+
+<div id="health"
+
+class="text-6xl font-bold text-green-400">
+
+100
+
+</div>
+
+
+<p class="text-gray-300">
+
+System Reliability Score
+
+</p>
+
+
+</div>
+
+
+
+
+
+
+<!-- INSIGHTS -->
+
+
+<div class="glass p-6 rounded-xl mt-8">
+
+
+<h2 class="text-2xl mb-4">
+
+🧠 AI Insights
+
+</h2>
+
+
+<div id="insights"
+
+class="text-gray-300">
+
+Waiting for analysis...
+
+</div>
+
+
+</div>
+
+
+
+
+
+
 <script>
 
 
 const API="http://localhost:8000";
+
+
 
 
 
@@ -310,23 +376,25 @@ let input=document.getElementById(
 
 
 
-let res=
-await fetch(
+let res=await fetch(
+
 API+"/chat",
+
 {
 
 method:"POST",
 
 headers:{
+
 "Content-Type":"application/json"
+
 },
 
-body:
-JSON.stringify(
-{
+body:JSON.stringify({
+
 input:input
-}
-)
+
+})
 
 }
 
@@ -334,8 +402,7 @@ input:input
 
 
 
-let data=
-await res.json();
+let data=await res.json();
 
 
 
@@ -349,8 +416,44 @@ data.response || data.error;
 
 loadData();
 
+}
+
+
+
+
+
+async function runDemo(){
+
+
+let res=await fetch(
+
+API+"/run-demo",
+
+{
+
+method:"POST"
 
 }
+
+);
+
+
+
+await res.json();
+
+
+document.getElementById(
+"response"
+).innerHTML=
+
+"Demo completed successfully 🚀";
+
+
+loadData();
+
+}
+
+
 
 
 
@@ -359,59 +462,55 @@ loadData();
 async function loadData(){
 
 
-let metrics=
-await fetch(
+let metrics=await fetch(
+
 API+"/metrics-summary"
+
 );
 
 
-let m=
-await metrics.json();
+
+let m=await metrics.json();
 
 
 
 document.getElementById(
 "total"
-).innerHTML=
-m.total_requests;
+).innerHTML=m.total_requests;
 
 
 
 document.getElementById(
 "success"
-).innerHTML=
-m.success_rate+"%";
+).innerHTML=m.success_rate+"%";
 
 
 
 document.getElementById(
 "errors"
-).innerHTML=
-m.errors;
+).innerHTML=m.errors;
 
 
 
 
-let logs=
+let logs=await fetch(
 
-await fetch(
 API+"/logs"
+
 );
 
 
-let l=
-await logs.json();
+
+let l=await logs.json();
 
 
 
 document.getElementById(
 "logs"
 ).innerHTML=
-l.map(
 
-x=>
+l.map(x=>`
 
-`
 <div class="bg-black/30 p-3 rounded">
 
 <b>${x.status}</b>
@@ -427,26 +526,95 @@ ${x.latency || 0}
 
 </div>
 
-`
+`).join("");
 
-).join("");
+}
 
+
+
+
+
+async function loadHealth(){
+
+
+try{
+
+
+let res=await fetch(
+
+API+"/health-score"
+
+);
+
+
+let data=await res.json();
+
+
+
+document.getElementById(
+"health"
+).innerHTML=
+
+data.score || 100;
+
+
+
+document.getElementById(
+"insights"
+).innerHTML=
+
+data.message ||
+
+"System working normally";
+
+
+}
+
+catch{
+
+
+document.getElementById(
+"insights"
+).innerHTML=
+
+"Waiting for backend connection";
+
+}
 
 
 }
 
 
 
+
+
 setInterval(
+
 loadData,
+
 3000
+
 );
+
+
+
+setInterval(
+
+loadHealth,
+
+5000
+
+);
+
 
 
 loadData();
 
+loadHealth();
+
 
 </script>
+
 
 
 </body>
