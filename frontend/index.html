@@ -4,109 +4,446 @@
 <head>
 
 <title>
-NeuroTrace AI Dashboard
+NeuroView AI Dashboard
 </title>
+
+
+<script src="https://cdn.tailwindcss.com"></script>
+
 
 <style>
 
 body{
-background:#0f172a;
+
+background:
+linear-gradient(
+135deg,
+#020617,
+#1e1b4b
+);
+
 color:white;
-font-family:Arial;
-padding:30px;
+
+font-family:
+Inter, sans-serif;
+
 }
+
+
+.glass{
+
+background:
+rgba(255,255,255,0.08);
+
+backdrop-filter:
+blur(15px);
+
+border:
+1px solid rgba(255,255,255,0.1);
+
+}
+
 
 .card{
-background:#1e293b;
-padding:20px;
-margin:15px;
-border-radius:15px;
+
+transition:
+0.3s;
+
 }
 
-button{
-padding:10px;
-background:#2563eb;
-color:white;
-border:none;
+
+.card:hover{
+
+transform:
+translateY(-5px);
+
 }
+
 
 </style>
 
 </head>
 
 
-<body>
+
+<body class="p-8">
 
 
-<h1>
-🧠 NeuroTrace AI System
+
+<h1 class="text-4xl font-bold mb-2">
+
+🚀 NeuroView AI Dashboard
+
 </h1>
 
 
-<div class="card">
+<p class="text-gray-300 mb-8">
 
-<input id="input"
-placeholder="Ask AI"
+AI Observability powered by FastAPI + OpenTelemetry + SigNoz
+
+</p>
+
+
+
+
+
+<!-- Chat Section -->
+
+
+<div class="glass rounded-xl p-6 mb-8">
+
+
+<h2 class="text-2xl mb-4">
+
+🤖 AI Agent Chat
+
+</h2>
+
+
+
+<div class="flex gap-3">
+
+
+<input
+
+id="input"
+
+class="flex-1 p-3 rounded bg-black/40"
+
+placeholder="Ask AI anything..."
+
 >
 
-<button onclick="askAI()">
+
+
+<button
+
+onclick="sendMessage()"
+
+class="bg-blue-600 px-6 rounded"
+
+>
+
 Send
+
 </button>
 
-<p id="response"></p>
 
 </div>
 
 
 
-<div class="card">
+<div
 
-<h2>
-Metrics
-</h2>
+id="response"
 
-<p id="metrics">
-Loading...
+class="mt-5 text-green-400">
+
+</div>
+
+
+</div>
+
+
+
+
+
+<!-- Metrics -->
+
+
+<div class="grid md:grid-cols-4 gap-5 mb-8">
+
+
+<div class="glass card p-5 rounded-xl">
+
+<h3>Total Requests</h3>
+
+<p id="total"
+
+class="text-3xl font-bold">
+
+0
+
 </p>
 
 </div>
 
 
 
+<div class="glass card p-5 rounded-xl">
+
+<h3>Success Rate</h3>
+
+<p id="success"
+
+class="text-3xl font-bold text-green-400">
+
+0%
+
+</p>
+
+</div>
+
+
+
+
+<div class="glass card p-5 rounded-xl">
+
+<h3>Errors</h3>
+
+<p id="errors"
+
+class="text-3xl font-bold text-red-400">
+
+0
+
+</p>
+
+</div>
+
+
+
+
+<div class="glass card p-5 rounded-xl">
+
+<h3>Status</h3>
+
+<p class="text-3xl font-bold text-blue-400">
+
+Healthy
+
+</p>
+
+</div>
+
+
+
+</div>
+
+
+
+
+
+<!-- Logs -->
+
+
+<div class="glass p-6 rounded-xl mb-8">
+
+
+<h2 class="text-2xl mb-4">
+
+📜 Live Logs
+
+</h2>
+
+
+<div
+
+id="logs"
+
+class="space-y-3">
+
+</div>
+
+
+</div>
+
+
+
+
+
+<!-- Trace Flow -->
+
+
+<div class="glass p-6 rounded-xl">
+
+
+<h2 class="text-2xl mb-4">
+
+🔭 Trace Flow
+
+</h2>
+
+
+<div class="text-blue-300">
+
+User Request
+
+↓
+
+FastAPI
+
+↓
+
+NeuroCore AI Engine
+
+↓
+
+OpenTelemetry
+
+↓
+
+SigNoz
+
+
+</div>
+
+
+</div>
+
+
+
+
 <script>
 
 
-async function askAI(){
+const API="http://localhost:8000";
+
+
+
+async function sendMessage(){
+
 
 let input=document.getElementById(
 "input"
 ).value;
 
 
-let res=await fetch(
-"http://localhost:8000/chat",
+
+let res=
+await fetch(
+API+"/chat",
 {
+
 method:"POST",
+
 headers:{
 "Content-Type":"application/json"
 },
-body:JSON.stringify({
+
+body:
+JSON.stringify(
+{
 input:input
-})
 }
+)
+
+}
+
 );
 
 
-let data=await res.json();
+
+let data=
+await res.json();
+
 
 
 document.getElementById(
 "response"
 ).innerHTML=
-JSON.stringify(data);
+
+data.response || data.error;
+
+
+
+loadData();
+
 
 }
 
+
+
+
+
+async function loadData(){
+
+
+let metrics=
+await fetch(
+API+"/metrics-summary"
+);
+
+
+let m=
+await metrics.json();
+
+
+
+document.getElementById(
+"total"
+).innerHTML=
+m.total_requests;
+
+
+
+document.getElementById(
+"success"
+).innerHTML=
+m.success_rate+"%";
+
+
+
+document.getElementById(
+"errors"
+).innerHTML=
+m.errors;
+
+
+
+
+let logs=
+
+await fetch(
+API+"/logs"
+);
+
+
+let l=
+await logs.json();
+
+
+
+document.getElementById(
+"logs"
+).innerHTML=
+l.map(
+
+x=>
+
+`
+<div class="bg-black/30 p-3 rounded">
+
+<b>${x.status}</b>
+
+<br>
+
+${x.input || ""}
+
+<br>
+
+Latency:
+${x.latency || 0}
+
+</div>
+
+`
+
+).join("");
+
+
+
+}
+
+
+
+setInterval(
+loadData,
+3000
+);
+
+
+loadData();
 
 
 </script>
