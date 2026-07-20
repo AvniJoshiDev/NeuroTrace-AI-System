@@ -1,0 +1,36 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>DevOps Control Center</title>
+    <link rel="stylesheet" href="/static/css/devops_ui.css">
+</head>
+
+<body>
+
+<h1>⚙️ DevOps Monitoring Panel</h1>
+
+<div class="ai-box">
+    <input type="text" id="question" placeholder="Ask AI about system...">
+    <button onclick="askAI()">Ask</button>
+    <p id="answer"></p>
+</div>
+
+<script>
+async function askAI() {
+    let q = document.getElementById("question").value;
+
+    let res = await fetch("/ask_ai", {
+        method: "POST",
+        headers: {"Content-Type": "application/json"},
+        body: JSON.stringify({question: q})
+    });
+
+    let data = await res.json();
+    document.getElementById("answer").innerText = data.answer;
+}
+</script>
+
+<script src="/static/js/voice_alert_engine.js"></script>
+
+</body>
+</html>
