@@ -1,79 +1,173 @@
+"""
+NeuroTrace AI System
+
+FastAPI + OpenTelemetry + SigNoz
+Main Application
+"""
+
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+
 import time
 import uuid
+
 
 from core.ai_engine import generate_ai_response
 from core.error_analyzer import analyze_error
 from core.failure_detector import check_failure_pattern
 
+
 from models.schemas import ChatRequest
 
-from observability.logging_config import logger
+
+from observability.tracing import create_span
+
+
 from observability.metrics import (
     total_requests,
     total_errors,
+    successful_requests,
     request_latency
 )
+
+
+from observability.logging_config import (
+    logger,
+    log_error
+)
+
+
+from observability.alerts import (
+    check_latency_alert,
+    check_error_alert,
+    get_alerts
+)
+
+
+from observability.health_score import (
+    calculate_health_score
+)
+
 
 from middleware.request_tracker import RequestTracker
 
 
+
 app = FastAPI(
+
     title="NeuroTrace AI System",
-    description="AI Observability System with FastAPI + OpenTelemetry",
+
+    description=
+    "AI Observability System powered by SigNoz",
+
     version="1.0.0"
+
 )
 
+
+
+# Frontend connection
 
 app.add_middleware(
+
     CORSMiddleware,
+
     allow_origins=["*"],
+
     allow_methods=["*"],
-    allow_headers=["*"],
+
+    allow_headers=["*"]
+
 )
 
 
-# Request tracking middleware
+
+# Request tracking
+
 app.add_middleware(
     RequestTracker
 )
 
 
+
 logs = []
+
+error_count = 0
+
+total_latency = 0
+
 
 
 @app.get("/")
+
 async def home():
 
     return {
-        "message": "NeuroTrace AI System Running 🚀",
-        "status": "healthy"
+
+        "system":
+        "NeuroTrace AI System",
+
+        "observability":
+        "OpenTelemetry + SigNoz",
+
+        "status":
+        "running"
+
     }
 
 
 
+
 @app.post("/chat")
-async def chat(request: ChatRequest):
+
+async def chat(
+    request: ChatRequest
+):
+
+    global error_count
+    global total_latency
+
+
+    request_id = str(
+        uuid.uuid4()
+    )
+
 
     start_time = time.time()
 
-    request_id = str(uuid.uuid4())
 
     total_requests.add(1)
 
 
+
     try:
 
-        response = await generate_ai_response(
-            request.input
-        )
+
+        with create_span(
+            "AI_Response_Generation"
+        ):
+
+
+            response = await generate_ai_response(
+
+                request.input
+
+            )
+
 
 
         latency = round(
-            time.time() - start_time,
+
+            time.time()
+            -
+            start_time,
+
             4
+
         )
+
+
+        total_latency += latency
 
 
         request_latency.record(
@@ -81,81 +175,117 @@ async def chat(request: ChatRequest):
         )
 
 
-        logs.append(
-            {
-                "request_id": request_id,
-                "input": request.input,
-                "response": response,
-                "latency": latency,
-                "status": "success"
-            }
+        successful_requests.add(1)
+
+
+
+        check_latency_alert(
+            latency
         )
+
+
+
+        log = {
+
+            "request_id":
+            request_id,
+
+            "input":
+            request.input,
+
+            "response":
+            response,
+
+            "latency":
+            latency,
+
+            "status":
+            "success"
+
+        }
+
+
+
+        logs.append(log)
+
 
 
         logger.info(
-            {
-                "trace": request_id,
-                "status": "success",
-                "latency": latency
-            }
+            "AI request completed successfully"
         )
 
 
-        return {
-            "request_id": request_id,
-            "response": response,
-            "latency": latency,
-            "status": "success"
-        }
+
+        return log
+
 
 
 
     except Exception as error:
 
 
+        error_count += 1
+
+
         total_errors.add(1)
 
 
+
         error_data = analyze_error(
+
             str(error)
+
         )
 
 
-        latency = round(
-            time.time() - start_time,
-            4
+
+        check_error_alert(
+
+            error_count,
+
+            len(logs)+1
+
         )
 
 
-        logs.append(
-            {
-                "request_id": request_id,
-                "error": error_data,
-                "latency": latency,
-                "status": "error"
-            }
+
+        log_error(
+
+            error,
+
+            error_data
+
         )
 
 
-        logger.error(
-            {
-                "trace": request_id,
-                "error": error_data
-            }
-        )
 
+        log = {
 
-        return {
-            "request_id": request_id,
-            "error": error_data,
-            "latency": latency,
-            "status": "error"
+            "request_id":
+            request_id,
+
+            "error":
+            error_data,
+
+            "status":
+            "error"
+
         }
+
+
+
+        logs.append(log)
+
+
+
+        return log
+
 
 
 
 
 @app.get("/logs")
+
 async def get_logs():
 
     return logs[-10:]
@@ -163,71 +293,151 @@ async def get_logs():
 
 
 
+
 @app.get("/metrics-summary")
+
 async def metrics_summary():
 
     total = len(logs)
 
-    success = len(
-        [
-            x for x in logs
-            if x.get("status")=="success"
-        ]
-    )
 
-    errors = total - success
+    success = len(
+
+        [
+
+            x for x in logs
+
+            if x.get("status")
+            ==
+            "success"
+
+        ]
+
+    )
 
 
     return {
 
-        "total_requests": total,
-        "success": success,
-        "errors": errors,
+        "total_requests":
+        total,
+
+        "success":
+        success,
+
+        "errors":
+        error_count,
+
         "success_rate":
-            round(
-                (success / total * 100)
-                if total else 0,
-                2
-            )
+        round(
+
+            (success / total * 100)
+
+            if total else 0,
+
+            2
+
+        )
+
     }
 
 
 
 
+
 @app.get("/analysis-report")
+
 async def analysis_report():
 
-    return check_failure_pattern()
+    return {
+
+        "failure_analysis":
+        check_failure_pattern(),
+
+        "alerts":
+        get_alerts()
+
+    }
+
+
+
+
+
+@app.get("/health-score")
+
+async def health_score():
+
+    total = len(logs)
+
+
+    avg_latency = (
+
+        total_latency / total
+
+        if total
+
+        else 0
+
+    )
+
+
+    return calculate_health_score(
+
+        total,
+
+        error_count,
+
+        avg_latency
+
+    )
+
 
 
 
 
 @app.post("/run-demo")
+
 async def run_demo():
 
-    examples = [
-        "Explain AI",
-        "What is observability?",
+
+    demo_inputs = [
+
+        "Explain Artificial Intelligence",
+
+        "What is OpenTelemetry?",
+
         "",
+
         "unclear xyz"
+
     ]
 
 
-    results=[]
+    results = []
 
 
-    for item in examples:
+
+    for item in demo_inputs:
+
 
         result = await chat(
+
             ChatRequest(
                 input=item
             )
+
         )
+
 
         results.append(result)
 
 
+
     return {
-        "demo":"completed",
-        "results":results
+
+        "demo":
+        "completed",
+
+        "results":
+        results
+
     }
