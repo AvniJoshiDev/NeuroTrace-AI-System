@@ -5,10 +5,9 @@ app = Flask(__name__)
 @app.route('/')
 def home():
     return "Hello World"
-    
-    ---
-    
-    def get_system_status(total, errors):
+
+
+def get_system_status(total, errors):
     error_rate = (errors / total) * 100 if total > 0 else 0
 
     if error_rate < 20:
